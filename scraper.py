@@ -128,7 +128,6 @@ def wait_for_table_to_load(driver, wait_obj, log_fn):
     try:
         wait_obj.until(EC.presence_of_element_located((By.CSS_SELECTOR,
             "#DataTables_Table_0 tbody tr, table.dataTable tbody tr, table.table-striped tbody tr")))
-        time.sleep(1.5)
         return True
     except TimeoutException:
         log_fn("Table wait timed out - attempting extraction anyway")
@@ -147,7 +146,6 @@ def scrape_chartink_page(driver, wait_obj, url, log_fn, stop_flag, retry_count=0
     try:
         log_fn(f"Visiting {screener_name} (attempt {retry_count + 1}/{RETRY_ATTEMPTS})")
         driver.get(url)
-        time.sleep(3)
 
         if stop_flag():
             return None
@@ -159,7 +157,6 @@ def scrape_chartink_page(driver, wait_obj, url, log_fn, stop_flag, retry_count=0
                 if btn.is_displayed() and btn.is_enabled():
                     btn.click()
                     log_fn(f"Clicked run button ({sel})")
-                    time.sleep(2)
                     break
             except Exception:
                 continue
@@ -278,7 +275,7 @@ def run_scraper(log_fn, progress_fn, stop_flag, output_dir):
             progress_fn(idx, total)
 
             if not stop_flag():
-                time.sleep(1.5)
+                time.sleep(0.5)
 
         log_fn("\n" + "=" * 60)
         log_fn("SCRAPING COMPLETED")
