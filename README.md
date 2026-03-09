@@ -1,3 +1,13 @@
+---
+title: Chartink Scraper
+emoji: 📊
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # Chartink Scraper — Web Dashboard
 
 A Flask-based web application to run Chartink screener scraping from your browser.
