@@ -1,0 +1,58 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# ── Environment / secrets ──────────────────────────────────────────────────────
+.env
+.env.*
+*.env
+secrets.py
+
+# ── Output Excel files ─────────────────────────────────────────────────────────
+# Keep the outputs/ folder tracked but ignore generated files inside it
+outputs/*.xlsx
+outputs/*.xls
+outputs/*.csv
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── ChromeDriver / Selenium ───────────────────────────────────────────────────
+chromedriver
+chromedriver.exe
+geckodriver
+
+# ── Build / dist ──────────────────────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ── Pytest / coverage ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
