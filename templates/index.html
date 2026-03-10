@@ -575,7 +575,11 @@
   }
 
   function renderLogs(logs) {
-    if (logs.length === lastLogCount) return;
+    if (!logs) return;
+    const lastItem = logs.length ? logs[logs.length - 1] : '';
+    const localLastItem = localLogs.length ? localLogs[localLogs.length - 1] : '';
+
+    if (logs.length === lastLogCount && lastItem === localLastItem) return;
     lastLogCount = logs.length;
     localLogs = logs;
 
