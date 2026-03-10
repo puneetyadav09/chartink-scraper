@@ -2,6 +2,7 @@ import os
 import json
 import queue
 import threading
+import pytz
 from datetime import datetime, time as dtime
 from flask import Flask, render_template, jsonify, send_file, abort
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -13,6 +14,8 @@ app = Flask(__name__)
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "outputs")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 EXCEL_FILE = os.path.join(OUTPUT_DIR, "chartink.xlsx")
+
+IST = pytz.timezone("Asia/Kolkata")
 
 # ── Shared state (all clients see same data) ─────────────────────────────────
 state = {
@@ -30,7 +33,7 @@ stop_event = threading.Event()
 
 
 def _emit_log(msg: str):
-    ts = datetime.now().strftime("%H:%M:%S")
+    ts = datetime.now(IST).strftime("%H:%M:%S")
     line = f"[{ts}] {msg}"
     with state_lock:
         state["logs"].append(line)
@@ -57,7 +60,7 @@ def _scraper_thread(trigger: str):
         state["current"] = 0
         state["logs"] = []
         state["trigger"] = trigger
-        state["started_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        state["started_at"] = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
     stop_event.clear()
 
     output_file = run_scraper(
@@ -97,7 +100,7 @@ def scheduled_job():
     start_scraper(trigger="auto")
 
 
-scheduler = BackgroundScheduler()
+scheduler = BackgroundScheduler(timezone="Asia/Kolkata")
 scheduler.add_job(
     scheduled_job,
     trigger="cron",
@@ -122,7 +125,7 @@ def api_status():
         file_label = None
         if file_exists:
             mtime = os.path.getmtime(EXCEL_FILE)
-            file_label = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+            file_label = datetime.fromtimestamp(mtime, IST).strftime("%Y-%m-%d %H:%M")
 
         job = scheduler.get_job("daily_scrape")
         next_run = job.next_run_time.strftime("%Y-%m-%d %H:%M %Z") if job and job.next_run_time else "—"
@@ -136,7 +139,7 @@ def api_status():
             "trigger": state["trigger"],
             "started_at": state["started_at"],
             "has_file": file_exists,
-            "file_name": f"chartink_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            "file_name": f"chartink_{datetime.now(IST).strftime('%Y-%m-%d')}.xlsx",
             "file_updated": file_label,
             "auto_trigger_enabled": True,
             "next_run": next_run,
@@ -164,7 +167,7 @@ def api_download():
     if not os.path.exists(EXCEL_FILE):
         abort(404, "No Excel file available yet.")
     # Download name includes today's date so each download is identifiable
-    download_name = f"chartink_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+    download_name = f"chartink_{datetime.now(IST).strftime('%Y-%m-%d')}.xlsx"
     return send_file(EXCEL_FILE, as_attachment=True, download_name=download_name)
 
 
