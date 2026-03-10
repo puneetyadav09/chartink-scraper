@@ -1,13 +1,24 @@
+---
+title: Chartink Scraper
+emoji: 📊
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # Chartink Scraper — Web Dashboard
 
 A Flask-based web application to run Chartink screener scraping from your browser.
 
 ## Features
 - ▶ **Manual start/stop** button — anyone who visits the page sees the live state
-- ⏰ **Auto-trigger at 5:00 PM** (Mon–Fri) — always enabled, cannot be disabled
+- ⏰ **Auto-trigger at 5:00 PM IST** (Mon–Fri) — always enabled, accurately timezone-mapped
+- ⚡ **Fast-Polling Extraction** — bypasses 15s timeouts for blazing fast scraping (under 5 mins total)
 - 📊 **Live progress bar** synced for all visitors
-- 📋 **Real-time log stream** showing backend output
-- 📥 **One-click Excel download** of the latest scraped file
+- 📋 **Real-time log stream** fully persistent across tab switches and page reloads
+- 📥 **One-click Excel download** of the latest data in a single clean 'All Screeners' sheet
 - 🌐 **Shared state** — if one user starts a run, all visitors see it live
 
 ---
@@ -75,4 +86,4 @@ The Flask server keeps a single in-memory `state` dict protected by a threading 
 
 ## Auto-trigger
 
-APScheduler fires the scraper every **Monday–Friday at 17:00 (5 PM)**. The scheduler starts with the Flask app and cannot be disabled from the UI. If a manual run is already in progress at 5 PM, the auto-trigger is skipped.
+APScheduler fires the scraper every **Monday–Friday at 17:00 (5 PM) Indian Standard Time (IST)**. Using the `pytz` library, the timezone is strictly mapped to `Asia/Kolkata` so it executes accurately regardless of where the server is hosted. The scheduler starts with the Flask app and cannot be disabled from the UI. If a manual run is already in progress at 5 PM IST, the auto-trigger is skipped.

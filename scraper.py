@@ -284,14 +284,16 @@ def extract_table_from_dom(driver, log_fn):
 
 
 def wait_for_table_to_load(driver, wait_obj, log_fn):
-    """Wait until at least one data row is visible in the table."""
-    try:
-        wait_obj.until(EC.presence_of_element_located((By.CSS_SELECTOR,
-            "#DataTables_Table_0 tbody tr, table.dataTable tbody tr, table.table-striped tbody tr")))
-        return True
-    except TimeoutException:
-        log_fn("Table wait timed out - attempting extraction anyway")
-        return False
+    """Fast poll to verify table is populated instead of relying on rigid CSS waits."""
+    for _ in range(20):
+        temp_df = extract_table_from_dom(driver, lambda msg: None)
+        if temp_df is not None and not temp_df.empty:
+            first_row_txt = " ".join([str(x) for x in temp_df.values[0]]).lower()
+            if "processing" not in first_row_txt and "loading" not in first_row_txt:
+                return True
+        time.sleep(0.5)
+    log_fn("Table wait timed out - attempting extraction anyway")
+    return False
 
 
 def scrape_chartink_page(driver, wait_obj, url, log_fn, stop_flag, retry_count=0):
@@ -468,14 +470,9 @@ def run_scraper(log_fn, progress_fn, stop_flag, output_dir):
 
             with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
                 merged_df.to_excel(writer, index=False, sheet_name="All Screeners")
-                for screener_name, group_df in merged_df.groupby("Screener"):
-                    sheet = screener_name[:31]
-                    group_df.drop(columns=["Screener"]).to_excel(
-                        writer, index=False, sheet_name=sheet
-                    )
 
             log_fn(f"\nExcel saved: {excel_name}")
-            log_fn(f"Sheets: 'All Screeners' + one sheet per screener")
+            log_fn(f"Sheets: 'All Screeners' only")
             log_fn("=" * 60)
         else:
             log_fn("\nNo data extracted from any website")
