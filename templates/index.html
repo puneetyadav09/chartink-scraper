@@ -438,6 +438,41 @@
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.success { border-color: rgba(0,255,136,0.3); color: var(--green); }
   .toast.error   { border-color: rgba(255,56,96,0.3); color: var(--red); }
+
+  /* ── Filter Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: auto; }
+  .modal-content {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 30px;
+    width: 600px;
+    max-width: 90%;
+    box-shadow: 0 0 20px rgba(0,212,255,0.05);
+  }
+  .modal-content h3 { margin-bottom: 20px; color: var(--text-bright); font-size: 1.4rem; }
+  .filter-group {
+    margin-bottom: 15px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .filter-group label { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--accent); }
+  .filter-group select, .filter-group input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    color: var(--text-bright); padding: 10px; border-radius: 8px; font-family: 'Syne', sans-serif; outline: none;
+  }
+  .filter-group select option { background: var(--panel); color: var(--text-bright); }
+  .filter-inputs { display: flex; gap: 10px; }
+  .filter-inputs input { flex: 1; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 25px; }
 </style>
 </head>
 <body>
@@ -542,6 +577,79 @@
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
+<!-- Filter Modal -->
+<div id="filter-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div id="filter-form-view">
+      <h3>Filter &amp; Download Excel</h3>
+      
+      <div class="filter-group">
+        <label>% Chg</label>
+        <select id="op-% Chg" onchange="toggleInputs('% Chg')">
+          <option value="none">No filter</option>
+          <option value="less than">Less than</option>
+          <option value="greater than">Greater than</option>
+          <option value="less than equal to">Less than or equal to</option>
+          <option value="greater than equal to">Greater than or equal to</option>
+          <option value="between">Between</option>
+        </select>
+        <div class="filter-inputs">
+          <input type="number" id="v1-% Chg" placeholder="Value" style="display:none;" />
+          <input type="number" id="v2-% Chg" placeholder="Max Value" style="display:none;" />
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label>Price</label>
+        <select id="op-Price" onchange="toggleInputs('Price')">
+          <option value="none">No filter</option>
+          <option value="less than">Less than</option>
+          <option value="greater than">Greater than</option>
+          <option value="less than equal to">Less than or equal to</option>
+          <option value="greater than equal to">Greater than or equal to</option>
+          <option value="between">Between</option>
+        </select>
+        <div class="filter-inputs">
+          <input type="number" id="v1-Price" placeholder="Value" style="display:none;" />
+          <input type="number" id="v2-Price" placeholder="Max Value" style="display:none;" />
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label>Volume</label>
+        <select id="op-Volume" onchange="toggleInputs('Volume')">
+          <option value="none">No filter</option>
+          <option value="less than">Less than</option>
+          <option value="greater than">Greater than</option>
+          <option value="less than equal to">Less than or equal to</option>
+          <option value="greater than equal to">Greater than or equal to</option>
+          <option value="between">Between</option>
+        </select>
+        <div class="filter-inputs">
+          <input type="number" id="v1-Volume" placeholder="Value" style="display:none;" />
+          <input type="number" id="v2-Volume" placeholder="Max Value" style="display:none;" />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-stop" onclick="closeFilterModal()">Cancel</button>
+        <button class="btn btn-download" onclick="applyFilters()">Continue</button>
+      </div>
+    </div>
+
+    <div id="filter-stats-view" style="display:none;">
+      <h3>Filter Summary</h3>
+      <div class="log-section">
+        <pre id="filter-stats-text" style="font-family:'JetBrains Mono', monospace; font-size: 0.8rem; padding: 20px; color: var(--text-bright); line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;"></pre>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-start" onclick="showFilterForm()">Prev</button>
+        <button class="btn btn-download" onclick="doFinalDownload()">Download</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
   let lastLogCount = 0;
@@ -705,9 +813,90 @@
     }
   }
 
+  let currentFileId = null;
+
   function doDownload() {
-    window.location.href = '/api/download';
-    showToast('Downloading Excel...', 'success');
+    document.getElementById('filter-modal').classList.add('show');
+    showFilterForm();
+  }
+
+  function closeFilterModal() {
+    document.getElementById('filter-modal').classList.remove('show');
+  }
+
+  function showFilterForm() {
+    document.getElementById('filter-form-view').style.display = 'block';
+    document.getElementById('filter-stats-view').style.display = 'none';
+  }
+
+  function toggleInputs(col) {
+    const op = document.getElementById(`op-${col}`).value;
+    const v1 = document.getElementById(`v1-${col}`);
+    const v2 = document.getElementById(`v2-${col}`);
+    
+    if (op === 'none') {
+      v1.style.display = 'none';
+      v2.style.display = 'none';
+    } else if (op === 'between') {
+      v1.style.display = 'block';
+      v2.style.display = 'block';
+    } else {
+      v1.style.display = 'block';
+      v2.style.display = 'none';
+    }
+  }
+
+  async function applyFilters() {
+    const cols = ['% Chg', 'Price', 'Volume'];
+    const payload = { filters: {} };
+    
+    cols.forEach(col => {
+      const op = document.getElementById(`op-${col}`).value;
+      if (op !== 'none') {
+        payload.filters[col] = {
+          op: op,
+          val1: document.getElementById(`v1-${col}`).value,
+          val2: document.getElementById(`v2-${col}`).value
+        };
+      }
+    });
+
+    try {
+      showToast('Applying filters...', 'info');
+      const res = await fetch('/api/filter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Filter failed', 'error');
+        return;
+      }
+      
+      const st = data.stats;
+      const text = `Rows before dedup  : ${st['Rows before dedup']}
+Duplicates removed : ${st['Duplicates removed']}
+Final rows         : ${st['Final rows']}
+Columns            : [${st['Columns'].map(c => `'${c}'`).join(', ')}]`;
+      
+      document.getElementById('filter-stats-text').textContent = text;
+      currentFileId = data.fid;
+      
+      document.getElementById('filter-form-view').style.display = 'none';
+      document.getElementById('filter-stats-view').style.display = 'block';
+      showToast('Filters applied!', 'success');
+    } catch(e) {
+      showToast('Error applying filters', 'error');
+    }
+  }
+
+  function doFinalDownload() {
+    if (currentFileId) {
+      window.location.href = `/api/download_filtered/${currentFileId}`;
+      showToast('Downloading Excel...', 'success');
+      closeFilterModal();
+    }
   }
 
   function showToast(msg, type='') {

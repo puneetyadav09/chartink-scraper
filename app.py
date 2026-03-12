@@ -4,8 +4,11 @@ import queue
 import threading
 import pytz
 from datetime import datetime, time as dtime
-from flask import Flask, render_template, jsonify, send_file, abort
+from flask import Flask, render_template, jsonify, send_file, abort, request
 from apscheduler.schedulers.background import BackgroundScheduler
+import pandas as pd
+from io import BytesIO
+import uuid
 
 from scraper import run_scraper, WEBSITES
 
@@ -30,6 +33,7 @@ state = {
 }
 state_lock = threading.Lock()
 stop_event = threading.Event()
+filtered_cache = {}
 
 
 def _emit_log(msg: str):
@@ -169,6 +173,95 @@ def api_download():
     # Download name includes today's date so each download is identifiable
     download_name = f"chartink_{datetime.now(IST).strftime('%Y-%m-%d')}.xlsx"
     return send_file(EXCEL_FILE, as_attachment=True, download_name=download_name)
+
+
+@app.route("/api/filter", methods=["POST"])
+def api_filter():
+    if not os.path.exists(EXCEL_FILE):
+        return jsonify({"error": "No Excel file available"}), 404
+        
+    data = request.json
+    filters = data.get("filters", {})
+    
+    try:
+        df = pd.read_excel(EXCEL_FILE, sheet_name=0)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+        
+    def clean_numeric(col):
+        if col not in df.columns:
+            return df
+        tmp = df[col].astype(str).str.replace('%', '', regex=False).str.replace(',', '', regex=False).str.strip()
+        df[col] = pd.to_numeric(tmp, errors='coerce')
+        return df
+
+    df = clean_numeric('% Chg')
+    df = clean_numeric('Price')
+    df = clean_numeric('Volume')
+    
+    for col, filt in filters.items():
+        if col not in df.columns: continue
+        op = filt.get("op")
+        v1 = filt.get("val1")
+        v2 = filt.get("val2")
+        
+        if not op or op == "none": continue
+        
+        try:
+            if v1 is not None and str(v1).strip() != "":
+                v1 = float(v1)
+            else: v1 = None
+
+            if op == "between" and v2 is not None and str(v2).strip() != "":
+                v2 = float(v2)
+            else: v2 = None
+        except ValueError:
+            continue
+            
+        if op == "less than" and v1 is not None:
+            df = df[df[col] < v1]
+        elif op == "greater than" and v1 is not None:
+            df = df[df[col] > v1]
+        elif op == "less than equal to" and v1 is not None:
+            df = df[df[col] <= v1]
+        elif op == "greater than equal to" and v1 is not None:
+            df = df[df[col] >= v1]
+        elif op == "between" and v1 is not None and v2 is not None:
+            df = df[(df[col] >= v1) & (df[col] <= v2)]
+
+    rows_before_dedup = len(df)
+    
+    if 'Symbol' in df.columns:
+        df = df.drop_duplicates(subset=['Symbol'], keep='first')
+        
+    final_rows = len(df)
+    duplicates_removed = rows_before_dedup - final_rows
+    
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Filtered Data")
+    
+    output.seek(0)
+    fid = str(uuid.uuid4())
+    filtered_cache[fid] = output.getvalue()
+    
+    stats = {
+        "Rows before dedup": rows_before_dedup,
+        "Duplicates removed": duplicates_removed,
+        "Final rows": final_rows,
+        "Columns": list(df.columns)
+    }
+    
+    return jsonify({"stats": stats, "fid": fid})
+
+@app.route("/api/download_filtered/<fid>")
+def download_filtered(fid):
+    if fid not in filtered_cache:
+        abort(404, "Filtered file not found or expired.")
+    
+    b_data = filtered_cache[fid]
+    download_name = f"filtered_chartink_{datetime.now(IST).strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
+    return send_file(BytesIO(b_data), as_attachment=True, download_name=download_name, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 if __name__ == "__main__":
