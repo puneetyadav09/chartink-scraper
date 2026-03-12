@@ -18,7 +18,7 @@ A Flask-based web application to run Chartink screener scraping from your browse
 - ⚡ **Fast-Polling Extraction** — bypasses 15s timeouts for blazing fast scraping (under 5 mins total)
 - 📊 **Live progress bar** synced for all visitors
 - 📋 **Real-time log stream** fully persistent across tab switches and page reloads
-- 📥 **One-click Excel download** of the latest data in a single clean 'All Screeners' sheet
+- 📥 **Advanced Excel download** — Dynamically apply filters to the table and download exactly what you see
 - 🌐 **Shared state** — if one user starts a run, all visitors see it live
 
 ---
@@ -32,10 +32,10 @@ chartink-scraper/
 ├── templates/
 │   └── index.html   # Single-page dashboard (pure HTML/CSS/JS)
 ├── outputs/         # Generated Excel files saved here
-├── requirements.txt
-├── Procfile         # For Render/Heroku deployment
-├── render.yaml      # Render platform config
-└── runtime.txt      # Python 3.11
+├── Dockerfile       # Hugging Face Spaces & Docker configuration
+├── requirements.txt # Python dependencies
+├── Procfile         # Render/Heroku platform config (Legacy)
+└── render.yaml      # Render platform config (Legacy)
 ```
 
 ---
@@ -57,7 +57,19 @@ python app.py
 
 ---
 
-## Deploy to Render
+## Deploy to Hugging Face Spaces (Recommended)
+
+1. Create a new **Space** on [Hugging Face](https://huggingface.co/spaces)
+2. Choose **Docker** as the Space SDK and select **Blank** template
+3. Clone the repo and push this folder's contents to the Hugging Face Space repository
+4. The space will automatically build using the existing `Dockerfile` and start the server on port `7860`
+5. The `Dockerfile` handles everything including the background installation of Chromium and ChromeDriver.
+
+> **Note**: Free-tier Spaces sleep after 48 hours of inactivity. For the 5 PM auto-trigger to fire flawlessly every day, consider an automatic Space awake script or upgrading to a Pro environment.
+
+---
+
+## Deploy to Render (Legacy)
 
 1. Push this folder to a GitHub repo
 2. Go to https://render.com → New → Web Service
@@ -70,8 +82,6 @@ python app.py
    apt-get update && apt-get install -y chromium-driver
    ```
 6. Deploy!
-
-> **Note**: Render's free tier sleeps after inactivity. Use the Starter plan ($7/mo) for always-on operation so the 5 PM auto-trigger works reliably.
 
 ---
 
